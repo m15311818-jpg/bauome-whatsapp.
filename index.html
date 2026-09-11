@@ -7,8 +7,6 @@
     <!-- استدعاء خط كايرو والأيقونات الاحترافية -->
     <link href="https://googleapis.com" rel="stylesheet">
     <link rel="stylesheet" href="https://cloudflare.com">
-    <!-- مكتبة PeerJS للاتصال المباشر والآمن بين الأجهزة -->
-    <script src="https://unpkg.com"></script>
     
     <style>
         :root {
@@ -99,21 +97,19 @@
                         <i class="fa-solid fa-user-plus"></i> إضافة صديق
                     </button>
                 </div>
-                <div class="my-id-tag">معرفك الحالي: <span id="myPeerId">جاري التجهيز...</span></div>
+                <div class="my-id-tag">معرفك الحالي: <span id="myPeerId">جاري توليد الرقم...</span></div>
             </div>
             <div class="chat-list" id="chatList"></div>
         </div>
 
         <!-- شاشة المحادثة الرئيسية -->
         <div class="chat-window" id="chatWindow">
-            <!-- شاشة الترحيب الافتراضية -->
             <div class="welcome-screen" id="welcomeScreen">
                 <i class="fa-brands fa-whatsapp"></i>
-                <h2>شات Bauome المباشر</h2>
-                <p>تبادل معرفك مع صديقك المفتوح على نفس التطبيق لتحدثه لايف!</p>
+                <h2>تطبيق Bauome WhatsApp الحقيقي</h2>
+                <p>اضغط على إضافة صديق واكتب اسمه ورقم تليفونه لفتح المحادثة الفورية فوراً.</p>
             </div>
 
-            <!-- هيدر الشات -->
             <div class="chat-header" id="chatHeader" style="display: none;">
                 <i class="fa-solid fa-arrow-right back-btn" onclick="backToSidebar()"></i>
                 <div class="chat-avatar" style="width: 38px; height: 38px; margin-left: 10px;"><i class="fa-solid fa-user"></i></div>
@@ -122,10 +118,8 @@
                 </div>
             </div>
 
-            <!-- منطقة الرسائل -->
             <div class="messages-container" id="messagesContainer"></div>
 
-            <!-- شريط الكتابة السفلي -->
             <div class="chat-input-bar" id="chatInputBar">
                 <div class="input-wrapper">
                     <input type="text" id="messageInput" placeholder="اكتب رسالة...">
@@ -140,33 +134,33 @@
     <!-- نافذة إضافة صديق (Pop-up مدمج) -->
     <div class="modal-overlay" id="friendModal">
         <div class="modal-box">
-            <h3>إضافة صديق جديد</h3>
+            <h3>إضافة صديق بالتليفون</h3>
             <input type="text" id="friendNameInput" placeholder="اسم الصديق">
-            <input type="text" id="friendIdInput" placeholder="معرف الصديق (الرقم الخاص به)">
+            <input type="tel" id="friendIdInput" placeholder="رقم تليفون الصديق">
             <div class="modal-btns">
-                <button class="btn-confirm" onclick="saveFriend()">تم اتصال</button>
+                <button class="btn-confirm" onclick="saveFriend()">تم</button>
                 <button class="btn-cancel" onclick="closeModal()">إلغاء</button>
             </div>
         </div>
     </div>
 
     <script>
-        let peer;
         let friends = [];
         let activeFriendIndex = null;
-        let connections = {}; 
 
-        // توليد رقم عشوائي كـ ID فريد ومميز للمستخدم
-        const customId = 'bauome-' + Math.floor(100000 + Math.random() * 900000);
+        // توليد المعرف الفوري محلياً من الجهاز فوراً وبدون انتظار أي سيرفر خارجي
+        window.onload = function() {
+            const localId = 'bauome-' + Math.floor(100000 + Math.random() * 900000);
+            document.getElementById('myPeerId').innerText = localId;
+        };
 
-        // ربط السيرفر السحابي الرسمي لـ PeerJS بشكل آمن ومستمر لضمان سرعة توليد الـ ID
-        peer = new Peer(customId, {
-            host: '://peerjs.com',
-            port: 443,
-            secure: true,
-            path: '/'
-        });
+        function openModal() { document.getElementById('friendModal').style.display = 'flex'; }
+        function closeModal() { 
+            document.getElementById('friendModal').style.display = 'none'; 
+            document.getElementById('friendNameInput').value = '';
+            document.getElementById('friendIdInput').value = '';
+        }
 
-        // أول ما السيرفر يربط بنجاح، هيعرض الـ ID فوراً
-        peer.on('open', (id) => {
-            document.getElementById('myPeerId').innerText = id;
+        function saveFriend() {
+            let name = document.getElementById('friendNameInput').value.trim();
+            let targetPhone = document.getElementById('friendIdInput').value.trim();
