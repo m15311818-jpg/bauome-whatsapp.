@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bauome WhatsApp Live</title>
+    <!-- استدعاء خط كايرو والأيقونات الاحترافية -->
+    <link href="https://googleapis.com" rel="stylesheet">
+    <link rel="stylesheet" href="https://cloudflare.com">
+    <!-- مكتبة PeerJS للاتصال المباشر والآمن بين الأجهزة -->
+    <script src="https://unpkg.com"></script>
+    
+    <style>
+        :root {
+            --dark-bg: #111b21;
+            --sidebar-bg: #111b21;
+            --chat-bg: #0b141a;
+            --panel-bg: #202c33;
+            --whatsapp-green: #00a884;
+            --text-main: #e9edef;
+            --text-muted: #8696a0;
+            --bubble-out: #005c4b;
+            --bubble-in: #202c33;
+            --border-color: #222e35;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Cairo', sans-serif; }
+        body { background-color: #0b141a; color: var(--text-main); height: 100vh; display: flex; overflow: hidden; }
+        .app-container { display: flex; width: 100%; height: 100vh; }
+
+        /* القائمة الجانبية للأصدقاء */
+        .sidebar { width: 35%; max-width: 400px; min-width: 280px; border-left: 1px solid var(--border-color); display: flex; flex-direction: column; background-color: var(--sidebar-bg); }
+        .sidebar-header { height: 75px; background-color: var(--panel-bg); padding: 10px 16px; display: flex; flex-direction: column; justify-content: center; }
+        .sidebar-actions { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .my-id-tag { font-size: 12px; color: var(--whatsapp-green); font-weight: bold; margin-top: 4px; direction: ltr; text-align: right; }
+        .add-friend-btn { background: var(--whatsapp-green); border: none; color: white; padding: 5px 12px; border-radius: 20px; font-size: 13px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+        
+        .chat-list { flex: 1; overflow-y: auto; }
+        .chat-item { display: flex; padding: 12px 16px; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: 0.2s; align-items: center; }
+        .chat-item:hover, .chat-item.active { background-color: var(--panel-bg); }
+        .chat-avatar { width: 45px; height: 45px; border-radius: 50%; background-color: #53616b; margin-left: 15px; display: flex; justify-content: center; align-items: center; font-size: 18px; color: #fff; }
+        .chat-info { flex: 1; }
+        .chat-name { font-weight: 600; font-size: 15px; display: block; }
+
+        /* منطقة المحادثة الرئيسية */
+        .chat-window { flex: 1; display: flex; flex-direction: column; background-color: var(--chat-bg); position: relative; }
+        .chat-window::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.04; background-image: url('https://githubusercontent.com'); pointer-events: none; }
+        .chat-header { height: 60px; background-color: var(--panel-bg); padding: 10px 16px; display: flex; align-items: center; z-index: 1; border-bottom: 1px solid var(--border-color); }
+        .current-chat-name { font-weight: 600; margin-right: 12px; font-size: 16px; }
+        
+        /* شاشة الترحيب */
+        .welcome-screen { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: var(--text-muted); z-index: 1; padding: 20px; }
+        .welcome-screen i { font-size: 80px; color: #202c33; margin-bottom: 20px; }
+
+        /* منطقة الرسائل */
+        .messages-container { flex: 1; padding: 20px; overflow-y: auto; z-index: 1; display: none; flex-direction: column; gap: 10px; }
+        .message { max-width: 65%; padding: 8px 12px; border-radius: 8px; font-size: 15px; position: relative; line-height: 1.4; display: flex; flex-direction: column; }
+        .message.sent { background-color: var(--bubble-out); align-self: flex-start; border-top-right-radius: 0; }
+        .message.received { background-color: var(--bubble-in); align-self: flex-end; border-top-left-radius: 0; }
+        .msg-time { font-size: 11px; color: var(--text-muted); align-self: flex-end; margin-top: 4px; display: flex; align-items: center; gap: 3px; }
+        .msg-time i { color: #53bdeb; }
+
+        /* شريط الكتابة السفلي */
+        .chat-input-bar { height: 62px; background-color: var(--panel-bg); padding: 5px 16px; display: none; align-items: center; gap: 15px; z-index: 1; }
+        .input-wrapper { flex: 1; }
+        .input-wrapper input { width: 100%; height: 42px; background-color: #2a3942; border: none; outline: none; border-radius: 8px; padding: 0 15px; color: var(--text-main); font-size: 15px; }
+        .send-btn { background: transparent; border: none; cursor: pointer; color: var(--whatsapp-green); font-size: 22px; }
+
+        /* نافذة إضافة صديق (Pop-up مدمج) */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 100; display: none; justify-content: center; align-items: center; }
+        .modal-box { background: var(--panel-bg); padding: 25px; border-radius: 12px; width: 320px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; }
+        .modal-box h3 { margin-bottom: 15px; color: var(--whatsapp-green); }
+        .modal-box input { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid var(--border-color); background: #2a3942; color: #fff; border-radius: 6px; outline: none; }
+        .modal-btns { display: flex; gap: 10px; justify-content: center; }
+        .modal-btns button { padding: 8px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-confirm { background: var(--whatsapp-green); color: white; }
+        .btn-cancel { background: #53616b; color: white; }
+
+        /* التوافق مع شاشات الموبايل */
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; max-width: none; }
+            .chat-window { display: none; width: 100%; }
+            .chat-window.active-window { display: flex; }
+            .sidebar.hidden-sidebar { display: none; }
+            .back-btn { display: block !important; margin-right: 10px; font-size: 20px; color: var(--text-muted); }
+        }
+        .back-btn { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- القائمة الجانبية -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-actions">
+                    <span style="font-weight: bold;">Bauome WhatsApp</span>
+                    <button class="add-friend-btn" onclick="openModal()">
+                        <i class="fa-solid fa-user-plus"></i> إضافة صديق
+                    </button>
+                </div>
+                <div class="my-id-tag">معرفك الحالي: <span id="myPeerId">جاري التجهيز...</span></div>
+            </div>
+            <div class="chat-list" id="chatList"></div>
+        </div>
+
+        <!-- شاشة المحادثة الرئيسية -->
+        <div class="chat-window" id="chatWindow">
+            <!-- شاشة الترحيب الافتراضية -->
+            <div class="welcome-screen" id="welcomeScreen">
+                <i class="fa-brands fa-whatsapp"></i>
+                <h2>شات Bauome المباشر</h2>
+                <p>تبادل معرفك مع صديقك المفتوح على نفس التطبيق لتحدثه لايف!</p>
+            </div>
+
+            <!-- هيدر الشات -->
+            <div class="chat-header" id="chatHeader" style="display: none;">
+                <i class="fa-solid fa-arrow-right back-btn" onclick="backToSidebar()"></i>
+                <div class="chat-avatar" style="width: 38px; height: 38px; margin-left: 10px;"><i class="fa-solid fa-user"></i></div>
+                <div>
+                    <div class="current-chat-name" id="currentChatName">اسم الصديق</div>
+                </div>
+            </div>
+
+            <!-- منطقة الرسائل -->
+            <div class="messages-container" id="messagesContainer"></div>
+
+            <!-- شريط الكتابة السفلي -->
+            <div class="chat-input-bar" id="chatInputBar">
+                <div class="input-wrapper">
+                    <input type="text" id="messageInput" placeholder="اكتب رسالة...">
+                </div>
+                <button class="send-btn" onclick="sendMessage()">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة إضافة صديق (Pop-up مدمج) -->
+    <div class="modal-overlay" id="friendModal">
+        <div class="modal-box">
+            <h3>إضافة صديق جديد</h3>
+            <input type="text" id="friendNameInput" placeholder="اسم الصديق">
+            <input type="text" id="friendIdInput" placeholder="معرف الصديق (الرقم الخاص به)">
+            <div class="modal-btns">
+                <button class="btn-confirm" onclick="saveFriend()">تم اتصال</button>
+                <button class="btn-cancel" onclick="closeModal()">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let peer;
+        let friends = [];
+        let activeFriendIndex = null;
+        let connections = {}; 
+
+        // توليد رقم عشوائي كـ ID فريد ومميز للمستخدم
+        const customId = 'bauome-' + Math.floor(100000 + Math.random() * 900000);
+
+        // ربط السيرفر السحابي الرسمي لـ PeerJS بشكل آمن ومستمر لضمان سرعة توليد الـ ID
+        peer = new Peer(customId, {
+            host: '://peerjs.com',
+            port: 443,
+            secure: true,
+            path: '/'
+        });
+
+        // أول ما السيرفر يربط بنجاح، هيعرض الـ ID فوراً
+        peer.on('open', (id) => {
+            document.getElementById('myPeerId').innerText = id;
